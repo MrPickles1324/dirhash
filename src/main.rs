@@ -37,6 +37,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         size_to_check += meta.len();
         files.push(ent.path().into());
     }
+    files.sort();
     println!(
         "Will calculate hashes for: {}",
         humansize::format_size(size_to_check, humansize::DECIMAL)
