@@ -1,0 +1,85 @@
+use std::{
+    env, fs,
+    path::{Path, PathBuf},
+    println,
+    process::exit,
+};
+
+use chrono::Utc;
+use indicatif::ProgressBar;
+use sha256::{try_digest, Sha256Digest};
+use walkdir::WalkDir;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let dir_arg = env::args().nth(1);
+    let the_dir;
+    if let Some(d) = dir_arg {
+        if fs::metadata(d.clone())?.is_dir() {
+            the_dir = d.as_str().to_string();
+        } else {
+            exit(1);
+        }
+    } else {
+        the_dir = "./".to_string();
+    }
+
+    let mut files: Vec<PathBuf> = Vec::new();
+    let mut size_to_check = 0;
+
+    for ent in WalkDir::new(the_dir)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|f| f.path().is_file())
+    {
+        let file = fs::File::open(ent.path())?;
+        let meta = file.metadata()?;
+        size_to_check += meta.len();
+        files.push(ent.path().into());
+    }
+    println!(
+        "Will calculate hashes for: {}",
+        humansize::format_size(size_to_check, humansize::DECIMAL)
+    );
+
+    let pb = ProgressBar::new(files.len() as u64);
+    let mut hashes = Vec::new();
+
+    for p in files {
+        hashes.push((
+            try_digest(p.as_path())?,
+            p.to_str().unwrap_or("WHAT").to_string(),
+        ));
+        pb.inc(1);
+    }
+    pb.finish();
+
+    let hash_of_all_hashes = hashes
+        .clone()
+        .into_iter()
+        .map(|i| i.0)
+        .collect::<Vec<String>>()
+        .join("\n")
+        .digest();
+
+    let mut hashes_str = hashes
+        .iter()
+        .map(|i| format!("{} {}", i.0, i.1))
+        .collect::<Vec<String>>()
+        .join("\n");
+    hashes_str.push_str("\n\n");
+    hashes_str.push_str(hash_of_all_hashes.as_str());
+
+    let mut hashes_file_p = Path::new("hashes.txt");
+
+    if hashes_file_p.exists() {
+        let date = Utc::now().to_string();
+        let f_name = format!("hashes{}.txt", date.as_str());
+        hashes_file_p = Path::new(f_name.as_str());
+        fs::write(hashes_file_p, hashes_str)?;
+        println!("Hashes writen in {}", hashes_file_p.to_str().unwrap());
+    } else {
+        fs::write(hashes_file_p, hashes_str)?;
+        println!("Hashes writen in {}", hashes_file_p.to_str().unwrap());
+    }
+    Ok(())
+}
