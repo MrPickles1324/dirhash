@@ -1,8 +1,8 @@
 use std::{
-    env, fs,
+    env, eprintln, fs,
     path::{Path, PathBuf},
     println,
-    process::exit, eprintln,
+    process::exit,
 };
 
 use chrono::Utc;
@@ -27,7 +27,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut files: Vec<PathBuf> = Vec::new();
     let mut size_to_check = 0;
 
-    for ent in WalkDir::new(the_dir)
+    for ent in WalkDir::new(the_dir.clone())
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|f| f.path().is_file())
@@ -82,5 +82,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         fs::write(hashes_file_p, hashes_str)?;
         println!("Hashes writen in {}", hashes_file_p.to_str().unwrap());
     }
+    println!("hash of {the_dir} is: {hash_of_all_hashes}");
     Ok(())
 }
