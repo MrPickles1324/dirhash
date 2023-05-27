@@ -2,7 +2,7 @@ use std::{
     env, fs,
     path::{Path, PathBuf},
     println,
-    process::exit,
+    process::exit, eprintln,
 };
 
 use chrono::Utc;
@@ -17,6 +17,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         if fs::metadata(d.clone())?.is_dir() {
             the_dir = d.as_str().to_string();
         } else {
+            eprintln!("specified path is not a directory");
             exit(1);
         }
     } else {
