@@ -26,48 +26,49 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut files: Vec<PathBuf> = Vec::new();
     let mut size_to_check = 0;
+    let pb = ProgressBar::new_spinner();
+    pb.set_message("Gathering files...");
 
     for ent in WalkDir::new(the_dir.clone())
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|f| f.path().is_file())
     {
-        let file = fs::File::open(ent.path())?;
+        pb.inc(1);
+        let file = fs::File::open(ent.path())
+            .expect(format!("Failed to open {}", ent.path().to_string_lossy()).as_str());
         let meta = file.metadata()?;
         size_to_check += meta.len();
         files.push(ent.path().into());
     }
     files.sort();
-    println!(
-        "Will calculate hashes for: {}",
+    pb.finish_with_message(format!(
+        "Calculating hashes for: {}",
         humansize::format_size(size_to_check, humansize::DECIMAL)
-    );
+    ));
 
     let pb = ProgressBar::new(files.len() as u64);
     let mut hashes = Vec::new();
 
     for p in files {
-        hashes.push((
-            try_digest(p.as_path())?,
-            p.to_str().unwrap_or("WHAT").to_string(),
-        ));
+        hashes.push((try_digest(p.as_path())?, p.to_string_lossy().into_owned()));
         pb.inc(1);
     }
     pb.finish();
-
-    let hash_of_all_hashes = hashes
-        .clone()
-        .into_iter()
-        .map(|i| i.0)
-        .collect::<Vec<String>>()
-        .join("\n")
-        .digest();
 
     let mut hashes_str = hashes
         .iter()
         .map(|i| format!("{} {}", i.0, i.1))
         .collect::<Vec<String>>()
         .join("\n");
+
+    let hash_of_all_hashes = hashes
+        .into_iter()
+        .map(|i| i.0)
+        .collect::<Vec<String>>()
+        .join("\n")
+        .digest();
+
     hashes_str.push_str("\n\n");
     hashes_str.push_str(hash_of_all_hashes.as_str());
 
