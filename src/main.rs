@@ -36,8 +36,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     {
         pb.inc(1);
         let file = fs::File::open(ent.path())
-            .expect(format!("Failed to open {}", ent.path().to_string_lossy()).as_str());
-        let meta = file.metadata()?;
+            .map_err(|e| format!("Failed to open {}: {e}", ent.path().to_string_lossy()))?;
+        let meta = file.metadata().map_err(|e| {
+            format!(
+                "Failed to get metadata for {}: {e}",
+                ent.path().to_string_lossy()
+            )
+        })?;
         size_to_check += meta.len();
         files.push(ent.path().into());
     }
